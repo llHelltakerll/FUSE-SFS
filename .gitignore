@@ -1,5 +1,8 @@
-sfs_dir/
-obj/
+./obj
+./mount
+fs.fisopfs
+
+./fisopfs
 
 sfs
 .vscode/

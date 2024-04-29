@@ -1,69 +1,39 @@
-########################################################################
-####################### Makefile Template ##############################
-########################################################################
+CC := gcc
+CFLAGS := -ggdb3 -O2 -Wall -std=c11
+CFLAGS += -Wno-unused-function -Wvla
 
-# Compiler settings - Can be customized.
-CC = gcc
-CXXFLAGS = -Wall -Wextra -g 
-LDFLAGS = -lfuse3 `pkg-config fuse3 --cflags --libs`
-# Makefile settings - Can be customized.
-CURRENT_DIR := $(CURDIR)
-APPNAME = $(CURDIR)/sfs
-EXT = .c
-SRCDIR = src
-OBJDIR = obj
+# Flags for FUSE
+LDLIBS := $(shell pkg-config fuse --cflags --libs)
 
-############## Do not change anything from here downwards! #############
-SRC = $(wildcard $(SRCDIR)/*$(EXT))
-OBJ = $(SRC:$(SRCDIR)/%$(EXT)=$(OBJDIR)/%.o)
-DEP = $(OBJ:$(OBJDIR)/%.o=%.d)
-# UNIX-based OS variables & settings
-RM = rm
-DELOBJ = $(OBJ)
-# Windows OS variables & settings
-DEL = del
-EXE = .exe
-WDELOBJ = $(SRC:$(SRCDIR)/%$(EXT)=$(OBJDIR)\\%.o)
+SRCDIR := src
+OBJDIR := obj
+BINDIR := .
+FS_NAME := $(BINDIR)/fisopfs
 
-########################################################################
-####################### Targets beginning here #########################
-########################################################################
+SOURCES := $(wildcard $(SRCDIR)/*.c)
+OBJECTS := $(patsubst $(SRCDIR)/%.c, $(OBJDIR)/%.o, $(SOURCES))
 
-all: $(APPNAME)
+all: build
 
-# Builds the app
-$(APPNAME): $(OBJ)
-	$(CC) $(CXXFLAGS) -o $@ $^ $(LDFLAGS)
+build: $(FS_NAME)
 
-# Creates the dependecy rules
-%.d: $(SRCDIR)/%$(EXT)
-	@$(CPP) $(CFLAGS) $< -MM -MT $(@:%.d=$(OBJDIR)/%.o) >$@
+format: .clang-files .clang-format
+	xargs -r clang-format -i <$<
 
-# Includes all .h files
--include $(DEP)
-
-# Building rule for .o files and its .c/.cpp in combination with all .h
-$(OBJDIR)/%.o: $(SRCDIR)/%$(EXT)
-	$(CC) $(CXXFLAGS) -o $@ -c $<
-
-################### Cleaning rules for Unix-based OS ###################
-# Cleans complete project
-.PHONY: clean
 clean:
-	$(RM) $(DELOBJ) $(DEP) $(APPNAME)
+	rm -rf $(BINDIR)/*.o $(FS_NAME)
 
-# Cleans only all files with the extension .d
-.PHONY: cleandep
-cleandep:
-	$(RM) $(DEP)
+run: build
+	./$(FS_NAME) -f ./mount/
 
-#################### Cleaning rules for Windows OS #####################
-# Cleans complete project
-.PHONY: cleanw
-cleanw:
-	$(DEL) $(WDELOBJ) $(DEP) $(APPNAME)$(EXE)
+$(FS_NAME): $(OBJECTS) | $(BINDIR)
+	$(CC) $(CFLAGS) $^ -o $@ $(LDLIBS)
 
-# Cleans only all files with the extension .d
-.PHONY: cleandepw
-cleandepw:
-	$(DEL) $(DEP)
+$(OBJDIR)/%.o: $(SRCDIR)/%.c | $(OBJDIR)
+	$(CC) $(CFLAGS) -c $< -o $@
+
+$(OBJDIR) $(BINDIR):
+	mkdir -p $@
+
+.PHONY: all build clean format
+
